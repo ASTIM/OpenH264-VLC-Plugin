@@ -29,10 +29,6 @@
 #ifndef INT64_C
 #   define INT64_C(c)	c ## L
 #endif
-#ifndef N_
-#   define N_(str)           gettext_noop (str)
-#   define gettext_noop(str) (str)
-#endif
 
 /*****************************************************************************
  * Preamble
@@ -72,13 +68,13 @@ vlc_module_begin ()
     set_subcategory( SUBCAT_INPUT_VCODEC )
     set_shortname( "OpenH264 codec" )
 
-    set_description( N_("OpenH264 encoder") )
+    set_description( "OpenH264 encoder" )
     set_capability( "encoder", 0 )
     set_callbacks( OpenEncoder, CloseEncoder )
     add_shortcut( "OpenH264" )
 
     add_submodule ()
-    set_description( N_("OpenH264 decoder") )
+    set_description( "OpenH264 decoder" )
     set_capability( "decoder", 0 )
     set_callbacks( OpenDecoder, CloseDecoder )
     add_shortcut( "OpenH264" )
