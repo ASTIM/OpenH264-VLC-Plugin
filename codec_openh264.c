@@ -21,6 +21,7 @@
 #define HAVE_NRAND48
 #define HAVE_SWAB
 #define HAVE_STRCASESTR
+#define LIBVLC_USE_PTHREAD_CANCEL
 
 #ifdef __MINGW32__
 #   define HAVE_GETPID
@@ -139,13 +140,13 @@ static int OpenDecoder( vlc_object_t *p_this )
     }
 
     p_sys->pDecoder = NULL;
-    if(WelsCreateDecoder (&p_sys->pDecoder))
+    if(WelsCreateDecoder(&p_sys->pDecoder))
     {
         msg_Err(p_dec, "WelsCreateDecoder failed!");
         return VLC_ENOMEM;
     }
 
-    p_sys->sDecParam = new SDecodingParam;
+    p_sys->sDecParam = malloc(sizeof p_sys->sDecParam);
     if (p_sys->sDecParam == NULL)
     {
         msg_Err(p_dec, "Can't allocate memory for SDecodingParam");
@@ -158,7 +159,7 @@ static int OpenDecoder( vlc_object_t *p_this )
     p_sys->i_size = 0;
 
     p_sys->sDecParam->sVideoProperty.size = sizeof (p_sys->sDecParam->sVideoProperty);
-    p_sys->sDecParam->eOutputColorFormat = videoFormatI420;
+    //p_sys->sDecParam->eOutputColorFormat = videoFormatI420;
     p_sys->sDecParam->uiTargetDqLayer = (uint8_t) - 1;
     p_sys->sDecParam->eEcActiveIdc = ERROR_CON_SLICE_COPY;
     p_sys->sDecParam->sVideoProperty.eVideoBsType = VIDEO_BITSTREAM_DEFAULT;
@@ -166,17 +167,17 @@ static int OpenDecoder( vlc_object_t *p_this )
 
     p_sys->out_fmt = p_dec->fmt_out.video;
 
-    p_sys->sDstBufInfo = new SBufferInfo;
+    p_sys->sDstBufInfo = malloc(sizeof p_sys->sDstBufInfo);
     memset (p_sys->sDstBufInfo, 0, sizeof (SBufferInfo));
 
-    int ret = p_sys->pDecoder->Initialize(p_sys->sDecParam);
+    int ret = ((ISVCDecoder)p_sys->pDecoder)->Initialize(p_sys->pDecoder, p_sys->sDecParam);
     if (cmResultSuccess != ret) {
         printf ("Decoder initialization failed with error: %d.\n", ret);
         return VLC_ENOMEM;
     }
 
     int32_t iErrorConMethod = (int32_t) ERROR_CON_SLICE_MV_COPY_CROSS_IDR_FREEZE_RES_CHANGE;
-    p_sys->pDecoder->SetOption (DECODER_OPTION_ERROR_CON_IDC, &iErrorConMethod);
+    ((ISVCDecoder)p_sys->pDecoder)->SetOption(p_sys->pDecoder, DECODER_OPTION_ERROR_CON_IDC, &iErrorConMethod);
 
     msg_Info(p_dec, "OpenH264 decoder opened!");
     return VLC_SUCCESS;
@@ -233,10 +234,6 @@ static picture_t *DecodeBlock( decoder_t *p_dec, block_t **pp_block )
     if( !pp_block || !*pp_block ) return NULL;
     p_block = *pp_block;
 
-    int32_t iBufPos = 0;
-    int32_t iSliceIndex = 0;
-    int32_t iSliceSize = 0;
-
     uint8_t* pData[3] = {NULL};
 
     picture_t *p_picture = NULL;
@@ -271,7 +268,7 @@ static picture_t *DecodeBlock( decoder_t *p_dec, block_t **pp_block )
                 case NAL_PPS:
                 case NAL_SLICE_IDR:
                 case NAL_SLICE:
-                    ret = p_sys->pDecoder->DecodeFrameNoDelay (nalStart, nalLength, pData, p_sys->sDstBufInfo);
+                    ret = ((ISVCDecoder)p_sys->pDecoder)->DecodeFrameNoDelay(p_sys->pDecoder, nalStart, nalLength, pData, p_sys->sDstBufInfo);
                     if (dsErrorFree != ret)
                     {
                         printf("some error in decoding :( %d\n", ret);
@@ -315,7 +312,7 @@ static picture_t *DecodeBlock( decoder_t *p_dec, block_t **pp_block )
                             case NAL_PPS:
                             case NAL_SLICE_IDR:
                             case NAL_SLICE:
-                                ret = p_sys->pDecoder->DecodeFrameNoDelay (sliceStart, sliceLength, pData, p_sys->sDstBufInfo);
+                                ret = ((ISVCDecoder)p_sys->pDecoder)->DecodeFrameNoDelay(p_sys->pDecoder, sliceStart, sliceLength, pData, p_sys->sDstBufInfo);
                                 if (dsErrorFree != ret)
                                 {
                                     printf("some error in decoding :( %d\n", ret);
@@ -455,7 +452,7 @@ static int OpenEncoder( vlc_object_t *p_this )
         return VLC_ENOMEM;
     }
 
-    p_sys->sSvcParam = new SEncParamExt;
+    p_sys->sSvcParam = malloc (sizeof(p_sys->sSvcParam));
     if (p_sys->sSvcParam == NULL)
     {
         msg_Err(p_enc, "Can't allocate memory for SEncParamExt");
@@ -463,7 +460,7 @@ static int OpenEncoder( vlc_object_t *p_this )
     }
 
     // TODO: set this as encoder options via VLC
-    p_sys->pSVCEncoder->GetDefaultParams(p_sys->sSvcParam);
+    ((ISVCEncoder)p_sys->pSVCEncoder)->GetDefaultParams(p_sys->pSVCEncoder, p_sys->sSvcParam);
     p_sys->sSvcParam->iUsageType = SCREEN_CONTENT_REAL_TIME;
     p_sys->sSvcParam->fMaxFrameRate  = 25;                // input frame rate
     p_sys->sSvcParam->iPicWidth      = p_enc->fmt_in.video.i_width; // width of picture in samples
@@ -490,9 +487,9 @@ static int OpenEncoder( vlc_object_t *p_this )
     p_sys->sSvcParam->sSpatialLayers[0].fFrameRate         = 25;
     p_sys->sSvcParam->sSpatialLayers[0].iSpatialBitrate    = 2500000;
     p_sys->sSvcParam->sSpatialLayers[0].iMaxSpatialBitrate    = UNSPECIFIED_BIT_RATE;
-    p_sys->sSvcParam->sSpatialLayers[0].sSliceCfg.uiSliceMode = SM_SINGLE_SLICE;
+    //p_sys->sSvcParam->sSpatialLayers[0].sSliceCfg.uiSliceMode = SM_SINGLE_SLICE;
 
-    if (cmResultSuccess != p_sys->pSVCEncoder->InitializeExt(p_sys->sSvcParam)) { // SVC encoder initialization
+    if (cmResultSuccess != ((ISVCEncoder)p_sys->pSVCEncoder)->InitializeExt(p_sys->pSVCEncoder, p_sys->sSvcParam)) { // SVC encoder initialization
         printf ("SVC encoder Initialize failed\n");
         return VLC_ENOMEM;
     }
@@ -513,13 +510,13 @@ static block_t *Encode( encoder_t *p_enc, picture_t *p_pict )
     SSourcePicture* pSrcPic = NULL;
     SFrameBSInfo* sFbi = NULL;
 
-    pSrcPic = new SSourcePicture;
+    pSrcPic = malloc(sizeof(pSrcPic));
     if (pSrcPic == NULL) {
         msg_Err(p_enc, "Can't allocate memory for pSrcPic");
         return NULL;
     }
 
-    sFbi = new SFrameBSInfo;
+    sFbi = malloc(sizeof(sFbi));
     if (sFbi == NULL) {
         msg_Err(p_enc, "Can't allocate memory for sFbi");
         return NULL;
@@ -544,7 +541,7 @@ static block_t *Encode( encoder_t *p_enc, picture_t *p_pict )
     int iFrameSize = 0;
 
     pSrcPic->uiTimeStamp = p_pict->date;
-    int ret = p_sys->pSVCEncoder->EncodeFrame(pSrcPic, sFbi);
+    int ret = ((ISVCEncoder)p_sys->pSVCEncoder)->EncodeFrame(p_sys->pSVCEncoder, pSrcPic, sFbi);
     if (cmResultSuccess != ret)
     {
         printf("some error in encoding :( %d\n", ret);

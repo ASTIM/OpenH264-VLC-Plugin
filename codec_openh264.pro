@@ -1,32 +1,33 @@
 QT =
+CONFIG -= qt c++11
 
-#QMAKE_CFLAGS = -x c -fvisibility=hidden
-#QMAKE_CFLAGS += -std=gnu99
+#QMAKE_CXXFLAGS = -x c -fvisibility=hidden
+#QMAKE_CFLAGS = -x c
+#QMAKE_CFLAGS += -std=C99
 
 #QMAKE_LFLAGS += -static -static-libgcc -static-libstdc++
 
-CONFIG -= qt
-
+message($$CONFIG)
 TARGET = libopenh264_plugin
 TEMPLATE = lib
 
-SOURCES += codec_openh264.cpp
+SOURCES += codec_openh264.c
 
 exists($$PWD/third_party/openh264-bin/openh264*.dll)|\
 exists($$PWD/third_party/openh264-bin/libopenh264*.a)|\
 exists($$PWD/third_party/openh264-bin/libopenh264*.so)|\
 exists($$PWD/third_party/openh264-bin/libopenh264*.dylib) {
-    message(Found openh264 binary library!)
-    LIBS += -L$$PWD/third_party/openh264-bin/
+    message(Found openh264 binary library)
+    LIBS += -L"$$PWD/third_party/openh264-bin/"
     LIBS += -lopenh264
     INCLUDEPATH += $$PWD/third_party/openh264/codec/api/svc
 } else:\
 exists($$shadowed($$PWD)/third_party/build/bin/*openh264*.dll)|\
 exists($$shadowed($$PWD)/third_party/build/lib/*openh264*.lib)|\
 exists($$shadowed($$PWD)/third_party/build/lib/*openh264*.a) {
-    message(Found openh264 compiled library!)
-    LIBS += -L$$shadowed($$PWD)/third_party/build/bin/
-    LIBS += -L$$shadowed($$PWD)/third_party/build/lib/
+    message(Found openh264 compiled library)
+    LIBS += -L"$$shadowed($$PWD)/third_party/build/bin/"
+    LIBS += -L"$$shadowed($$PWD)/third_party/build/lib/"
     LIBS += -lopenh264
     INCLUDEPATH += $$shadowed($$PWD)/third_party/build/include/wels
 } else {
@@ -82,4 +83,17 @@ exists($$shadowed($$PWD)/third_party/build/lib/*openh264*.a) {
         )
         message($$BUILD_CMD)
     }
+}
+
+# TODO: Add vlc bin check
+exists($$PWD/third_party/vlc-dist/libvlccore.dll):\
+exists($$PWD/third_party/vlc-dist/libvlc.dll):\
+exists($$PWD/third_party/vlc-dist/sdk/include):{
+    message(Found vlc dist package)
+    LIBS += -L"$$PWD/third_party/vlc-dist/"
+    LIBS += -lvlc -lvlccore
+    INCLUDEPATH += $$PWD/third_party/vlc-dist/sdk/include
+    INCLUDEPATH += $$PWD/third_party/vlc-dist/sdk/include/vlc/plugins/
+} else {
+
 }
