@@ -84,7 +84,7 @@ vlc_module_begin ()
 vlc_module_end ()
 
 /*****************************************************************************
- * decoder_sys_t : theora decoder descriptor
+ * decoder_sys_t : OpenH264 decoder descriptor
  *****************************************************************************/
 struct decoder_sys_t
 {
@@ -182,6 +182,9 @@ static int OpenDecoder( vlc_object_t *p_this )
     return VLC_SUCCESS;
 }
 
+/*****************************************************************************
+ * getNal: Search for NAL units and returns it position in stream
+ *****************************************************************************/
 static size_t getNal(uint8_t* p_buf, uint8_t* p_bufEnd, uint8_t** p_nalStart, uint8_t** p_nalEnd)
 {
     *p_nalStart = p_buf;
@@ -220,7 +223,7 @@ static void getNalType(uint8_t* p_nal, int* i_type)
 }
 
 /****************************************************************************
- * DecodeBlock: the whole thing
+ * DecodeBlock: Decodes block and returnes decoded ref
  ****************************************************************************/
 static picture_t *DecodeBlock( decoder_t *p_dec, block_t **pp_block )
 {
@@ -342,7 +345,7 @@ static picture_t *DecodeBlock( decoder_t *p_dec, block_t **pp_block )
     }
 
     // walkaround for RTSP stream when picture size is availble only in PPS
-    // also it is good idea to update resolution woth new PPS "just in case"
+    // also it is good idea to update resolution with new PPS "just in case"
     if (!p_sys->out_fmt.i_width || !p_sys->out_fmt.i_height)
     {
         p_sys->out_fmt.i_visible_width = p_sys->out_fmt.i_width = p_sys->sDstBufInfo->UsrData.sSystemBuffer.iWidth;
@@ -353,7 +356,6 @@ static picture_t *DecodeBlock( decoder_t *p_dec, block_t **pp_block )
     if (p_sys->sDstBufInfo->iBufferStatus == 1) {
         int iWidth  = p_sys->sDstBufInfo->UsrData.sSystemBuffer.iWidth;
         int iHeight = p_sys->sDstBufInfo->UsrData.sSystemBuffer.iHeight;
-
 
         p_picture = decoder_NewPicture(p_dec);
         if( !p_picture ) return NULL;
@@ -401,7 +403,7 @@ static picture_t *DecodeBlock( decoder_t *p_dec, block_t **pp_block )
 }
 
 /*****************************************************************************
- * CloseDecoder: theora decoder destruction
+ * CloseDecoder: OpenH264 decoder destruction
  *****************************************************************************/
 static void CloseDecoder( vlc_object_t *p_this )
 {
@@ -414,7 +416,7 @@ static void CloseDecoder( vlc_object_t *p_this )
 }
 
 /*****************************************************************************
- * encoder_sys_t : theora encoder descriptor
+ * encoder_sys_t : OpenH264 encoder descriptor
  *****************************************************************************/
 struct encoder_sys_t
 {
@@ -502,7 +504,7 @@ static int OpenEncoder( vlc_object_t *p_this )
 }
 
 /****************************************************************************
- * Encode: the whole thing
+ * Encode: Encode frame id returnes block ref
  ****************************************************************************/
 static block_t *Encode( encoder_t *p_enc, picture_t *p_pict )
 {
@@ -613,7 +615,7 @@ static block_t *Encode( encoder_t *p_enc, picture_t *p_pict )
 }
 
 /*****************************************************************************
- * CloseEncoder: theora encoder destruction
+ * CloseEncoder: OpenH264 encoder destruction
  *****************************************************************************/
 static void CloseEncoder( vlc_object_t *p_this )
 {
