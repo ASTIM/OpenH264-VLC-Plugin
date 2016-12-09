@@ -1,34 +1,5 @@
 #define __PLUGIN__
 #define MODULE_STRING "OpenH264"
-#define HAVE_GMTIME_R
-#define HAVE_LOCALTIME_R
-#define HAVE_LLDIV
-#define HAVE_USELOCALE
-#define HAVE_STRCASECMP
-#define HAVE_STRDUP
-#define HAVE_STRVERSCMP
-#define HAVE_STRNLEN
-#define HAVE_STRNDUP
-#define HAVE_STRSEP
-#define HAVE_STRTOK_R
-#define HAVE_ATOF
-#define HAVE_ATOLL
-#define HAVE_STRTOF
-#define HAVE_STRTOLL
-#define HAVE_GETENV
-#define HAVE_SETENV
-#define HAVE_POSIX_MEMALIGN
-#define HAVE_NRAND48
-#define HAVE_SWAB
-#define HAVE_STRCASESTR
-#define LIBVLC_USE_PTHREAD_CANCEL
-
-#ifdef __MINGW32__
-#   define HAVE_GETPID
-#endif
-#ifndef INT64_C
-#   define INT64_C(c)	c ## L
-#endif
 
 #define OPENH264_VERSION(a, b, c) (((a) << 16) + ((b) << 8) + (c))
 #define OPENH264_CURRENT_VER OPENH264_VERSION(OPENH264_MAJOR, OPENH264_MINOR, OPENH264_REVISION)
@@ -37,18 +8,12 @@
  * Preamble
  *****************************************************************************/
 
-#ifndef __MINGW32__
-#   include "vlc_fixups.h"
-#endif
 #include "vlc_common.h"
 #include "vlc_plugin.h"
 #include "vlc_codec.h"
 #include "vlc_block.h"
 #include "vlc_sout.h"
 #include "vlc_input.h"
-
-#include <assert.h>
-#include <limits.h>
 
 #include "codec_api.h"
 #include "codec_ver.h"
