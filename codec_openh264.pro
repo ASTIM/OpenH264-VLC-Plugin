@@ -1,17 +1,40 @@
+# Copyright (c) 2016, A.ST.I.M. S.r.l.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 QT =
 CONFIG -= qt c++11
 
-#QMAKE_CXXFLAGS = -x c -fvisibility=hidden
-#QMAKE_CFLAGS = -x c
-#QMAKE_CFLAGS += -std=C99
-
-#QMAKE_LFLAGS += -static -static-libgcc -static-libstdc++
-
-message($$CONFIG)
 TARGET = libopenh264_plugin
 TEMPLATE = lib
 
 SOURCES += codec_openh264.c
+
+DISTFILES += \
+    $$files(third_party/openh264/*.h, true) \
+    $$files(third_party/openh264/*.hpp, true) \
+    $$files(third_party/openh264/*.c, true) \
+    $$files(third_party/openh264/*.cpp, true)
 
 exists($$PWD/third_party/openh264-bin/openh264*.dll)|\
 exists($$PWD/third_party/openh264-bin/libopenh264*.a)|\
@@ -82,6 +105,7 @@ exists($$shadowed($$PWD)/third_party/build/lib/*openh264*.a) {
         $$escape_expand(\n)"\
         )
         message($$BUILD_CMD)
+        error(OpenH264 not found)
     }
 }
 
