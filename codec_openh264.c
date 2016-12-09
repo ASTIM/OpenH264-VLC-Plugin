@@ -108,14 +108,17 @@ static int OpenDecoder( vlc_object_t *p_this )
     decoder_t *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys;
 
-    if( p_dec->fmt_in.i_codec != VLC_CODEC_H264 )
-    {
+    if( p_dec->fmt_in.i_codec != VLC_CODEC_H264 ) {
+        msg_Err(p_dec, "Input strem not H.264");
         return VLC_EGENERIC;
     }
 
     /* Allocate the memory needed to store the decoder's structure */
-    if( ( p_sys = malloc(sizeof *p_sys) ) == NULL )
+    p_sys = malloc(sizeof *p_sys);
+    if( p_sys == NULL ) {
+        msg_Err(p_dec, "Can't allocate memory for decoder context");
         return VLC_ENOMEM;
+    }
     p_dec->p_sys = p_sys;
 
     p_dec->fmt_out.i_cat = VIDEO_ES;
@@ -140,16 +143,14 @@ static int OpenDecoder( vlc_object_t *p_this )
     }
 
     p_sys->pDecoder = NULL;
-    if(WelsCreateDecoder(&p_sys->pDecoder))
-    {
-        msg_Err(p_dec, "WelsCreateDecoder failed!");
-        return VLC_ENOMEM;
+    if(WelsCreateDecoder(&p_sys->pDecoder)) {
+        msg_Err(p_dec, "Decoder creation failed");
+        return VLC_EGENERIC;
     }
 
     p_sys->sDecParam = malloc(sizeof *p_sys->sDecParam);
-    if (p_sys->sDecParam == NULL)
-    {
-        msg_Err(p_dec, "Can't allocate memory for SDecodingParam");
+    if (p_sys->sDecParam == NULL) {
+        msg_Err(p_dec, "Can't allocate memory for decoder params");
         return VLC_ENOMEM;
     }
     p_sys->uiTimeStamp = 0;
@@ -172,14 +173,14 @@ static int OpenDecoder( vlc_object_t *p_this )
     p_sys->sDstBufInfo = malloc(sizeof *p_sys->sDstBufInfo);
     memset (p_sys->sDstBufInfo, 0, sizeof (SBufferInfo));
 
-    int ret = ((ISVCDecoder)*p_sys->pDecoder)->Initialize(p_sys->pDecoder, p_sys->sDecParam);
+    int ret = (*p_sys->pDecoder)->Initialize(p_sys->pDecoder, p_sys->sDecParam);
     if (cmResultSuccess != ret) {
-        printf ("Decoder initialization failed with error: %d.\n", ret);
-        return VLC_ENOMEM;
+        msg_Err(p_dec, "Decoder initialization failed with error: %d", ret);
+        return VLC_EGENERIC;
     }
 
     int32_t iErrorConMethod = (int32_t) ERROR_CON_SLICE_MV_COPY_CROSS_IDR_FREEZE_RES_CHANGE;
-    ((ISVCDecoder)*p_sys->pDecoder)->SetOption(p_sys->pDecoder, DECODER_OPTION_ERROR_CON_IDC, &iErrorConMethod);
+    (*p_sys->pDecoder)->SetOption(p_sys->pDecoder, DECODER_OPTION_ERROR_CON_IDC, &iErrorConMethod);
 
     msg_Info(p_dec, "OpenH264 decoder opened!");
     return VLC_SUCCESS;
@@ -191,26 +192,21 @@ static int OpenDecoder( vlc_object_t *p_this )
 static size_t getNal(uint8_t* p_buf, uint8_t* p_bufEnd, uint8_t** p_nalStart, uint8_t** p_nalEnd)
 {
     *p_nalStart = p_buf;
-    while(*p_nalStart + 2 < p_bufEnd)
-    {
-        if ((*p_nalStart)[0] == 0 && (*p_nalStart)[1] == 0 && (*p_nalStart)[2] == 1)
-        {
+    while(*p_nalStart + 2 < p_bufEnd) {
+        if ((*p_nalStart)[0] == 0 && (*p_nalStart)[1] == 0 && (*p_nalStart)[2] == 1) {
             break;
         }
         (*p_nalStart)++;
     }
-    if (*p_nalStart + 2 == p_bufEnd)
-    {
+    if (*p_nalStart + 2 == p_bufEnd) {
         *p_nalStart = p_bufEnd;
         *p_nalEnd = p_bufEnd;
         return 0;
     }
 
     *p_nalEnd = *p_nalStart + 3;
-    while(*p_nalEnd + 2 < p_bufEnd)
-    {
-        if ((*p_nalEnd)[0] == 0 && (*p_nalEnd)[1] == 0 && (*p_nalEnd)[2] == 1)
-        {
+    while(*p_nalEnd + 2 < p_bufEnd) {
+        if ((*p_nalEnd)[0] == 0 && (*p_nalEnd)[1] == 0 && (*p_nalEnd)[2] == 1) {
             break;
         }
         (*p_nalEnd)++;
@@ -233,10 +229,11 @@ static picture_t *DecodeBlock( decoder_t *p_dec, block_t **pp_block )
     decoder_sys_t *p_sys = p_dec->p_sys;
     block_t *p_block;
 
-    if( !pp_block || !*pp_block ) return NULL;
+    if( !pp_block || !*pp_block )
+        return NULL;
     p_block = *pp_block;
 
-    uint8_t* pData[3] = {NULL};
+    uint8_t* pData[3] = { NULL };
 
     picture_t *p_picture = NULL;
 
@@ -253,16 +250,12 @@ static picture_t *DecodeBlock( decoder_t *p_dec, block_t **pp_block )
 
     p_sys->uiTimeStamp = p_block->i_pts;
     p_sys->sDstBufInfo->uiInBsTimeStamp = p_sys->uiTimeStamp;
-    while (nalStart < &(p_block->p_buffer[p_block->i_buffer]))     // look through all buffer
-    {
-        if (!p_sys->b_withDelimiter)
-        {
+    while (nalStart < &(p_block->p_buffer[p_block->i_buffer])) {    // look through all buffer
+        if (!p_sys->b_withDelimiter) {
             nalLength = getNal(nalStart, &(p_block->p_buffer[p_block->i_buffer]), &nalStart, &nalEnd);
-            if (nalLength > 0)
-            {
+            if (nalLength > 0) {
                 getNalType(nalStart, &nalType);
-                switch(nalType)
-                {
+                switch(nalType) {
                 case 9:     // NAL_DELIMETER
                     p_sys->b_withDelimiter = true;      //working with delimeters
                     break;
@@ -270,27 +263,22 @@ static picture_t *DecodeBlock( decoder_t *p_dec, block_t **pp_block )
                 case NAL_PPS:
                 case NAL_SLICE_IDR:
                 case NAL_SLICE:
-                    ret = ((ISVCDecoder)*p_sys->pDecoder)->DecodeFrameNoDelay(p_sys->pDecoder, nalStart, nalLength, pData, p_sys->sDstBufInfo);
-                    if (dsErrorFree != ret)
-                    {
-                        printf("some error in decoding :( %d\n", ret);
+                    ret = (*p_sys->pDecoder)->DecodeFrameNoDelay(p_sys->pDecoder, nalStart, nalLength, pData, p_sys->sDstBufInfo);
+                    if (dsErrorFree != ret) {
+                        msg_Err(p_dec, "Error while decoding: %d", ret);
                     }
                     break;
                 default:
-                    printf("Unknown NAL unit type: %d !\n", nalType);
+                    msg_Err(p_dec, "Unknown NAL unit type: %d", nalType);
                     break;
                 }
             }
-        }
-        else        //(!p_sys->b_withDelimiter)
-        {
+        } else {       //(!p_sys->b_withDelimiter)
             uint8_t* tmp_nalStart = p_block->p_buffer;
             nalLength = getNal(nalStart, &(p_block->p_buffer[p_block->i_buffer]), &tmp_nalStart, &nalEnd);
-            if (nalLength > 0)
-            {
+            if (nalLength > 0) {
                 getNalType(tmp_nalStart, &nalType);
-                switch (nalType)
-                {
+                switch (nalType) {
                 case 9: // NAL_DELIMETER
                     // must copy everything from buffer before delimiter!
                     p_sys->p_buff = (uint8_t*)realloc(p_sys->p_buff, p_sys->i_size + (tmp_nalStart - nalStart));
@@ -299,29 +287,25 @@ static picture_t *DecodeBlock( decoder_t *p_dec, block_t **pp_block )
 
                     // PROCESS SAVED BUFFER!
                     sliceStart = p_sys->p_buff;
-                    while (sliceStart < &(p_sys->p_buff[p_sys->i_size]))     // look through all saved buffer
-                    {
+                    while (sliceStart < &(p_sys->p_buff[p_sys->i_size])) {   // look through all saved buffer
                         sliceLength = getNal(sliceStart, &(p_sys->p_buff[p_sys->i_size]), &sliceStart, &sliceEnd);
-                        if (sliceLength > 0)
-                        {
+                        if (sliceLength > 0) {
                             getNalType(sliceStart, &sliceType);
-                            switch(sliceType)
-                            {
+                            switch(sliceType) {
                             case 9:     // NAL_DELIMETER
-                                printf("SHOULD NEVER HAPPEN! :(\n");
+                                msg_Err(p_dec, "SHOULD NEVER HAPPEN! :(");
                                 break;
                             case NAL_SPS:
                             case NAL_PPS:
                             case NAL_SLICE_IDR:
                             case NAL_SLICE:
-                                ret = ((ISVCDecoder)*p_sys->pDecoder)->DecodeFrameNoDelay(p_sys->pDecoder, sliceStart, sliceLength, pData, p_sys->sDstBufInfo);
-                                if (dsErrorFree != ret)
-                                {
-                                    printf("some error in decoding :( %d\n", ret);
+                                ret = (*p_sys->pDecoder)->DecodeFrameNoDelay(p_sys->pDecoder, sliceStart, sliceLength, pData, p_sys->sDstBufInfo);
+                                if (dsErrorFree != ret) {
+                                    msg_Err(p_dec, "Error while decoding: %d", ret);
                                 }
                                 break;
                             default:
-                                printf("Unknown NAL unit type: %d !\n", nalType);
+                                msg_Err(p_dec, "Unknown NAL unit type: %d", nalType);
                                 break;
                             }
                         }
@@ -345,8 +329,7 @@ static picture_t *DecodeBlock( decoder_t *p_dec, block_t **pp_block )
 
     // walkaround for RTSP stream when picture size is availble only in PPS
     // also it is good idea to update resolution with new PPS "just in case"
-    if (!p_sys->out_fmt.i_width || !p_sys->out_fmt.i_height)
-    {
+    if (!p_sys->out_fmt.i_width || !p_sys->out_fmt.i_height) {
         p_sys->out_fmt.i_visible_width = p_sys->out_fmt.i_width = p_sys->sDstBufInfo->UsrData.sSystemBuffer.iWidth;
         p_sys->out_fmt.i_visible_height = p_sys->out_fmt.i_height = p_sys->sDstBufInfo->UsrData.sSystemBuffer.iHeight;
         p_dec->fmt_out.video.i_visible_width = p_dec->fmt_out.video.i_width = p_sys->sDstBufInfo->UsrData.sSystemBuffer.iWidth;
@@ -364,7 +347,7 @@ static picture_t *DecodeBlock( decoder_t *p_dec, block_t **pp_block )
 
         // LUMA copy
         pPtr = pData[0];
-        for (int i = 0; i < iHeight; i++){
+        for (int i = 0; i < iHeight; i++) {
             memset(p_picture->p[0].p_pixels + offset, 0, iWidth);
             memcpy(p_picture->p[0].p_pixels + offset, pPtr, iWidth);
             pPtr += p_sys->sDstBufInfo->UsrData.sSystemBuffer.iStride[0];
@@ -376,7 +359,7 @@ static picture_t *DecodeBlock( decoder_t *p_dec, block_t **pp_block )
         iWidth /= 2;
         offset = 0;
         pPtr = pData[1];
-        for (int i = 0; i < iHeight; i++){
+        for (int i = 0; i < iHeight; i++) {
             memset(p_picture->p[1].p_pixels + offset, 0, iWidth);
             memcpy(p_picture->p[1].p_pixels + offset, pPtr, iWidth);
             pPtr += p_sys->sDstBufInfo->UsrData.sSystemBuffer.iStride[1];
@@ -384,7 +367,7 @@ static picture_t *DecodeBlock( decoder_t *p_dec, block_t **pp_block )
         }
         pPtr = pData[2];
         offset = 0;
-        for (int i = 0; i < iHeight; i++){
+        for (int i = 0; i < iHeight; i++) {
             memset(p_picture->p[2].p_pixels + offset, 0, iWidth);
             memcpy(p_picture->p[2].p_pixels + offset, pPtr, iWidth);
             pPtr += p_sys->sDstBufInfo->UsrData.sSystemBuffer.iStride[1];
@@ -432,14 +415,16 @@ static int OpenEncoder( vlc_object_t *p_this )
     encoder_t *p_enc = (encoder_t *)p_this;
     encoder_sys_t *p_sys;
 
-    if( p_enc->fmt_out.i_codec != VLC_CODEC_H264 )
-    {
+    if( p_enc->fmt_out.i_codec != VLC_CODEC_H264 ) {
+        msg_Err(p_enc, "Output strem not H.264");
         return VLC_EGENERIC;
     }
 
     /* Allocate the memory needed to store the encoder's structure */
-    if( ( p_sys = malloc(sizeof *p_sys) ) == NULL )
+    p_sys = malloc(sizeof *p_sys);
+    if( p_sys == NULL ) {
         return VLC_ENOMEM;
+    }
     p_enc->p_sys = p_sys;
 
     p_enc->fmt_out.i_cat = VIDEO_ES;
@@ -448,21 +433,19 @@ static int OpenEncoder( vlc_object_t *p_this )
     p_enc->fmt_in.i_codec = VLC_CODEC_I420;
 
     p_sys->pSVCEncoder = NULL;
-    if(WelsCreateSVCEncoder (&p_sys->pSVCEncoder))
-    {
+    if(WelsCreateSVCEncoder (&p_sys->pSVCEncoder)) {
         msg_Err(p_enc, "WelsCreateSVCEncoder failed!");
-        return VLC_ENOMEM;
+        return VLC_EGENERIC;
     }
 
     p_sys->sSvcParam = malloc (sizeof *p_sys->sSvcParam);
-    if (p_sys->sSvcParam == NULL)
-    {
+    if (p_sys->sSvcParam == NULL) {
         msg_Err(p_enc, "Can't allocate memory for SEncParamExt");
         return VLC_ENOMEM;
     }
 
     // TODO: set this as encoder options via VLC
-    ((ISVCEncoder)*p_sys->pSVCEncoder)->GetDefaultParams(p_sys->pSVCEncoder, p_sys->sSvcParam);
+    (*p_sys->pSVCEncoder)->GetDefaultParams(p_sys->pSVCEncoder, p_sys->sSvcParam);
     p_sys->sSvcParam->iUsageType = SCREEN_CONTENT_REAL_TIME;
     p_sys->sSvcParam->fMaxFrameRate  = 25;                // input frame rate
     p_sys->sSvcParam->iPicWidth      = p_enc->fmt_in.video.i_width; // width of picture in samples
@@ -491,9 +474,9 @@ static int OpenEncoder( vlc_object_t *p_this )
     p_sys->sSvcParam->sSpatialLayers[0].iMaxSpatialBitrate    = UNSPECIFIED_BIT_RATE;
     //p_sys->sSvcParam->sSpatialLayers[0].sSliceCfg.uiSliceMode = SM_SINGLE_SLICE;
 
-    if (cmResultSuccess != ((ISVCEncoder)*p_sys->pSVCEncoder)->InitializeExt(p_sys->pSVCEncoder, p_sys->sSvcParam)) { // SVC encoder initialization
-        printf ("SVC encoder Initialize failed\n");
-        return VLC_ENOMEM;
+    if (cmResultSuccess != (*p_sys->pSVCEncoder)->InitializeExt(p_sys->pSVCEncoder, p_sys->sSvcParam)) { // SVC encoder initialization
+        msg_Err(p_enc, "SVC encoder Initialize failed");
+        return VLC_EGENERIC;
     }
 
     p_sys->i_frame_inx = 0;
@@ -543,21 +526,18 @@ static block_t *Encode( encoder_t *p_enc, picture_t *p_pict )
     int iFrameSize = 0;
 
     pSrcPic->uiTimeStamp = p_pict->date;
-    int ret = ((ISVCEncoder)*p_sys->pSVCEncoder)->EncodeFrame(p_sys->pSVCEncoder, pSrcPic, sFbi);
-    if (cmResultSuccess != ret)
-    {
-        printf("some error in encoding :( %d\n", ret);
+    int ret = (*p_sys->pSVCEncoder)->EncodeFrame(p_sys->pSVCEncoder, pSrcPic, sFbi);
+    if (cmResultSuccess != ret) {
+        msg_Err(p_enc, "Error while encoding: %d", ret);
         return NULL;
     }
     int iLayer = 0;
-    for (iLayer = 0; iLayer < sFbi->iLayerNum; iLayer++)
-    {
+    for (iLayer = 0; iLayer < sFbi->iLayerNum; iLayer++) {
         int iLayerSize = 0;
         SLayerBSInfo* pLayerBsInfo = &sFbi->sLayerInfo[iLayer];
         if (pLayerBsInfo != NULL) {
             int iNalIdx = pLayerBsInfo->iNalCount - 1;
-            for (iNalIdx = pLayerBsInfo->iNalCount - 1; iNalIdx >= 0; iNalIdx--)
-            {
+            for (iNalIdx = pLayerBsInfo->iNalCount - 1; iNalIdx >= 0; iNalIdx--) {
                 iLayerSize += pLayerBsInfo->pNalLengthInByte[iNalIdx];
             }
             iFrameSize += iLayerSize;
@@ -570,14 +550,12 @@ static block_t *Encode( encoder_t *p_enc, picture_t *p_pict )
 
     unsigned int i_offset = 0;
 
-    for (iLayer = 0; iLayer < sFbi->iLayerNum; iLayer++)
-    {
+    for (iLayer = 0; iLayer < sFbi->iLayerNum; iLayer++) {
         SLayerBSInfo* pLayerBsInfo = &sFbi->sLayerInfo[iLayer];
         if (pLayerBsInfo != NULL) {
             int iLayerSize = 0;
             int iNalIdx = pLayerBsInfo->iNalCount - 1;
-            for (iNalIdx = pLayerBsInfo->iNalCount - 1; iNalIdx >= 0; iNalIdx--)
-            {
+            for (iNalIdx = pLayerBsInfo->iNalCount - 1; iNalIdx >= 0; iNalIdx--) {
                 iLayerSize += pLayerBsInfo->pNalLengthInByte[iNalIdx];
             }
             memcpy( p_block->p_buffer + i_offset, pLayerBsInfo->pBsBuf, iLayerSize );
@@ -585,8 +563,7 @@ static block_t *Encode( encoder_t *p_enc, picture_t *p_pict )
         }
     }
 
-    switch (sFbi->eFrameType)
-    {
+    switch (sFbi->eFrameType) {
     case videoFrameTypeIDR:
         p_block->i_flags |= BLOCK_FLAG_TYPE_I;
         break;
@@ -598,7 +575,7 @@ static block_t *Encode( encoder_t *p_enc, picture_t *p_pict )
         return NULL;
         break;
     default:
-        printf("DONNO HOW TO MARK THE BLOCK!\n");
+        msg_Err(p_enc, "Unknown block type");
         break;
     }
 
