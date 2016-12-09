@@ -472,8 +472,9 @@ static int OpenEncoder( vlc_object_t *p_this )
     p_sys->sSvcParam->sSpatialLayers[0].fFrameRate         = 25;
     p_sys->sSvcParam->sSpatialLayers[0].iSpatialBitrate    = 2500000;
     p_sys->sSvcParam->sSpatialLayers[0].iMaxSpatialBitrate    = UNSPECIFIED_BIT_RATE;
-    //p_sys->sSvcParam->sSpatialLayers[0].sSliceCfg.uiSliceMode = SM_SINGLE_SLICE;
-
+#if OPENH264_CURRENT_VER < OPENH264_VERSION(1, 6, 0)
+    p_sys->sSvcParam->sSpatialLayers[0].sSliceCfg.uiSliceMode = SM_SINGLE_SLICE;
+#endif
     if (cmResultSuccess != (*p_sys->pSVCEncoder)->InitializeExt(p_sys->pSVCEncoder, p_sys->sSvcParam)) { // SVC encoder initialization
         msg_Err(p_enc, "SVC encoder Initialize failed");
         return VLC_EGENERIC;
