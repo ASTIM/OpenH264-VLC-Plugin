@@ -47,6 +47,32 @@
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
+
+static int openh264_to_vlc_log(int openh264_log_level)
+{
+    switch (openh264_log_level) {
+    case WELS_LOG_QUIET:
+        return VLC_MSG_DBG;
+    case WELS_LOG_ERROR:
+        return VLC_MSG_ERR;
+    case WELS_LOG_WARNING:
+        return VLC_MSG_WARN;
+    case WELS_LOG_INFO:
+        return VLC_MSG_INFO;
+    case WELS_LOG_DEBUG:
+        return VLC_MSG_DBG;
+    case WELS_LOG_DETAIL:
+        return VLC_MSG_DBG;
+    default:
+        return VLC_MSG_DBG;
+    }
+}
+
+static void openh264_vlc_log(void* context, int level, const char* message)
+{
+    vlc_Log( context, openh264_to_vlc_log(level), MODULE_STRING, message );
+}
+
 static int  OpenDecoder   ( vlc_object_t * );
 static void CloseDecoder  ( vlc_object_t * );
 static picture_t *DecodeBlock  ( decoder_t *, block_t ** );
@@ -172,6 +198,13 @@ static int OpenDecoder( vlc_object_t *p_this )
 
     int32_t iErrorConMethod = (int32_t) ERROR_CON_SLICE_MV_COPY_CROSS_IDR_FREEZE_RES_CHANGE;
     (*p_sys->pDecoder)->SetOption(p_sys->pDecoder, DECODER_OPTION_ERROR_CON_IDC, &iErrorConMethod);
+
+    int log_level = WELS_LOG_DETAIL;
+    WelsTraceCallback callback_function;
+    callback_function = openh264_vlc_log;
+    (*p_sys->pDecoder)->SetOption(p_sys->pDecoder, DECODER_OPTION_TRACE_LEVEL, &log_level);
+    (*p_sys->pDecoder)->SetOption(p_sys->pDecoder, DECODER_OPTION_TRACE_CALLBACK, (void*)&callback_function);
+    (*p_sys->pDecoder)->SetOption(p_sys->pDecoder, DECODER_OPTION_TRACE_CALLBACK_CONTEXT, (void*)&p_dec);
 
     msg_Info(p_dec, "OpenH264 decoder opened!");
     return VLC_SUCCESS;
