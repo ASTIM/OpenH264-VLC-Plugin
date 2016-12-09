@@ -30,6 +30,9 @@
 #   define INT64_C(c)	c ## L
 #endif
 
+#define OPENH264_VERSION(a, b, c) (((a) << 16) + ((b) << 8) + (c))
+#define OPENH264_CURRENT_VER OPENH264_VERSION(OPENH264_MAJOR, OPENH264_MINOR, OPENH264_REVISION)
+
 /*****************************************************************************
  * Preamble
  *****************************************************************************/
@@ -48,6 +51,7 @@
 #include <limits.h>
 
 #include "codec_api.h"
+#include "codec_ver.h"
 
 /*****************************************************************************
  * Local prototypes
@@ -155,7 +159,9 @@ static int OpenDecoder( vlc_object_t *p_this )
     p_sys->i_size = 0;
 
     p_sys->sDecParam->sVideoProperty.size = sizeof (p_sys->sDecParam->sVideoProperty);
-    //p_sys->sDecParam->eOutputColorFormat = videoFormatI420;
+#if OPENH264_CURRENT_VER < OPENH264_VERSION(1, 6, 0)
+    p_sys->sDecParam->eOutputColorFormat = videoFormatI420;
+#endif
     p_sys->sDecParam->uiTargetDqLayer = (uint8_t) - 1;
     p_sys->sDecParam->eEcActiveIdc = ERROR_CON_SLICE_COPY;
     p_sys->sDecParam->sVideoProperty.eVideoBsType = VIDEO_BITSTREAM_DEFAULT;
