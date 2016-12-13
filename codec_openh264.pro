@@ -33,6 +33,7 @@ SOURCES += codec_openh264.c
 !defined(BUILD_PWD, var){
     BUILD_PWD = $$shadowed($$PWD)
 }
+DESTDIR = $$shadowed($$PWD)
 
 DISTFILES += \
     $$files(third_party/openh264/*.h, true) \
