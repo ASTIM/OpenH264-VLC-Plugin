@@ -30,6 +30,10 @@ TEMPLATE = lib
 
 SOURCES += codec_openh264.c
 
+!defined(BUILD_PWD, var){
+    BUILD_PWD = $$shadowed($$PWD)
+}
+
 DISTFILES += \
     $$files(third_party/openh264/*.h, true) \
     $$files(third_party/openh264/*.hpp, true) \
@@ -45,14 +49,14 @@ exists($$PWD/third_party/openh264-bin/libopenh264*.dylib) {
     LIBS += -lopenh264
     INCLUDEPATH += $$PWD/third_party/openh264/codec/api/svc
 } else:\
-exists($$shadowed($$PWD)/third_party/build/bin/*openh264*.dll)|\
-exists($$shadowed($$PWD)/third_party/build/lib/*openh264*.lib)|\
-exists($$shadowed($$PWD)/third_party/build/lib/*openh264*.a) {
+exists($$BUILD_PWD/third_party/build/bin/*openh264*.dll)|\
+exists($$BUILD_PWD/third_party/build/lib/*openh264*.lib)|\
+exists($$BUILD_PWD/third_party/build/lib/*openh264*.a) {
     message(Found openh264 compiled library)
-    LIBS += -L"$$shadowed($$PWD)/third_party/build/bin/"
-    LIBS += -L"$$shadowed($$PWD)/third_party/build/lib/"
+    LIBS += -L"$$BUILD_PWD/third_party/build/bin/"
+    LIBS += -L"$$BUILD_PWD/third_party/build/lib/"
     LIBS += -lopenh264
-    INCLUDEPATH += $$shadowed($$PWD)/third_party/build/include/wels
+    INCLUDEPATH += $$BUILD_PWD/third_party/build/include/wels
 } else {
     CONFIG(debug, debug|release) {
         OPENH264.buildtype = BUILDTYPE=Debug
