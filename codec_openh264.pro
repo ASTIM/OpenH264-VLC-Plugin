@@ -119,7 +119,7 @@ exists($$PWD/third_party/vlc-dist/libvlccore.dll):\
 exists($$PWD/third_party/vlc-dist/libvlc.dll):\
 exists($$PWD/third_party/vlc-dist/sdk/include):{
     message(Found vlc dist package)
-    LIBS += -L"$$PWD/third_party/vlc-dist/"
+    LIBS += -L"$$PWD/third_party/vlc-dist/sdk/lib"
     LIBS += -lvlc -lvlccore
     INCLUDEPATH += $$PWD/third_party/vlc-dist/sdk/include
     INCLUDEPATH += $$PWD/third_party/vlc-dist/sdk/include/vlc/plugins/
