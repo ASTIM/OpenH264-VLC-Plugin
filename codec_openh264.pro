@@ -123,5 +123,5 @@ exists($$PWD/third_party/vlc-dist/sdk/include):{
     INCLUDEPATH += $$PWD/third_party/vlc-dist/sdk/include
     INCLUDEPATH += $$PWD/third_party/vlc-dist/sdk/include/vlc/plugins/
 } else {
-
+    error(No VLC SDK was found!)
 }
